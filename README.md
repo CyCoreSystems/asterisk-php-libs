@@ -8,7 +8,7 @@ agi.php (class AGI)
 
 A simple class for building AGI-based PHP applications.  Loads AGI variables into the class object.  
 
-The script may optionally be set to NOT end (default: end) on hangup by setting the PHP global variable `$GLOBALS['agi\_end\_on\_hangup']` to boolean `false`.  Note that this is handled by attaching to SIGHUP, so if your application already handles or uses this signal, you'll have problems.
+The script may optionally be set to NOT end (default: end) on hangup by setting the PHP global variable `$GLOBALS['agi_end_on_hangup']` to boolean `false`.  Note that this is handled by attaching to SIGHUP, so if your application already handles or uses this signal, you'll have problems.
 
 read ( [ bool $parse ] )
 ------------------------
