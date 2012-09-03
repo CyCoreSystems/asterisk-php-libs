@@ -1,7 +1,7 @@
 asterisk-php-libs
 =================
 
-PHP Classes/Libraries for Asterisk
+PHP Classes for Asterisk AMI and AGI interfacing
 
 agi.php (class AGI)
 ===================
