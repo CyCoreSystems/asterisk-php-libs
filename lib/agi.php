@@ -34,7 +34,8 @@ class AGI
 	 * Return values are (default) the input from Asterisk or (with "parse") 
 	 * the result code from Asterisk.
 	 * */
-	public function read( $parse = false ) {
+	public function read( $parse = false ) 
+	{
 		$input = str_replace("\n", "", fgets( STDIN, 4096 ) );
 		trigger_error("read from Asterisk AGI: $input");
 	
