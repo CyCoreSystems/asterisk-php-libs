@@ -5,8 +5,6 @@
  * Copyright 2012, CyCore Systems, Inc.
  */
 
-require_once('include/base.php');
-
 /**
  * This is an Asterisk Manager Interface class to facilitate communication
  * to Asterisk via the AMI protocol.
@@ -173,7 +171,7 @@ class AMI
 			$ss .= "Variable: ". join( "=", $r ) ."\r\n";
 		$ss .= "\r\n";
 		
-		debug( "Sending to AMI: $ss" );
+		trigger_error( "Sending to AMI: $ss" );
 		if( ! fputs( $this->socket, $ss ) )
 			throw new Exception( "Failed to write to AMI socket" );
 	}
@@ -200,7 +198,7 @@ class AMI
 				return $result;
 			}
 
-			debug("Received line from AMI: $line");
+			trigger_error("Received line from AMI: $line");
 			/* Parse line */
 			$parts = explode( ':', $line );
 			if( count( $parts ) == 2 )
@@ -223,7 +221,7 @@ class AMI
 			$info = stream_get_meta_data( $this->socket );
 			if( $info['timed_out'] )
 			{
-				debug("AMI read() encountered a timeout waiting for the next line");
+				trigger_error("AMI read() encountered a timeout waiting for the next line");
 				return $success;
 			}
 
@@ -292,7 +290,7 @@ class AMI
 								continue;
 								break;;
 							default :
-								debug("ERROR- Unknown event encountered waiting for parked call list: ". $r[1] );
+								trigger_error("ERROR- Unknown event encountered waiting for parked call list: ". $r[1] );
 								$complete = TRUE;
 								break;;
 						}
@@ -343,7 +341,7 @@ class AMI
 								continue;
 								break;;
 							default :
-								debug("ERROR- Unknown event encountered waiting for channel list: ". $r[1] );
+								trigger_error("ERROR- Unknown event encountered waiting for channel list: ". $r[1] );
 								$complete = TRUE;
 								break;;
 						}
@@ -363,12 +361,12 @@ class AMI
 
 	public function dumpChannelData( $chan )
 	{
-		debug("ChannelDump:");
+		trigger_error("ChannelDump:");
 		foreach( $chan as $d )
 		{
-			debug( "   ". key($chan) .": ". $d );
+			trigger_error( "   ". key($chan) .": ". $d );
 		}
-		debug("EndChannelDump");
+		trigger_error("EndChannelDump");
 	}
 
 	/* Find the best (least-loaded and up) PRI */
@@ -377,22 +375,21 @@ class AMI
 		$pris = $this->checkPRI( 'ALL' );
 		foreach( $pris as $pri )
 		{
-debug("PRI ". $pri[0] ." is ". $pri[1] );
+trigger_error("PRI ". $pri[0] ." is ". $pri[1] );
 			if( $pri[1] == 'Up' )
 				$avail[$pri[0]] = 23;	// Set the available channel count to 23 to start
 			if( $pri[1] == 'Down' )
 				$avail[$pri[0]] = 0;	// PRI is down, so no channels are available
-debug("PRI ". $pri[0] ." has ". $avail[$pri[0]] ." channels remaining");
+trigger_error("PRI ". $pri[0] ." has ". $avail[$pri[0]] ." channels remaining");
 		}
 
 		/* Now assign calls to PRIs (if applicable) and reduce available channels accordingly */
 		$channels = $this->getChannels();
 
-debug("Working through ". sizeof( $channels ) ." channels.");
+		trigger_error("Working through ". sizeof( $channels ) ." channels.");
 
 		foreach( $channels as $c )
 		{
-$this->dumpChannelData( $c );
 			$parts = explode( '/', $c['Channel'] );
 			if( $parts[0] == 'DAHDI' )
 			{
@@ -403,15 +400,15 @@ $this->dumpChannelData( $c );
 				 *  at one instead of zero, we have to offset both by one */
 				$thispri = floor( ($cp[0] - 1) / 24.0 ) + 1;
 
-debug("Channel ". $c['Channel'] ." is a member of PRI $thispri");
+				trigger_error("Channel ". $c['Channel'] ." is a member of PRI $thispri");
 
 				/* Subtract the channel from those available to the associated PRI */
 				$avail[$thispri] = $avail[$thispri] - 1;
 
-debug("Reduced available channels on pri $thispri to ". $avail[$thispri] );
+				trigger_error("Reduced available channels on pri $thispri to ". $avail[$thispri] );
 			}
 			else {
-debug("Channel ". $c['Channel'] ." is not a DAHDI channel");
+				trigger_error("Channel ". $c['Channel'] ." is not a DAHDI channel");
 			}
 		}
 
