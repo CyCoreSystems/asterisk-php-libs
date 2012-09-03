@@ -7,6 +7,22 @@
 
 $GLOBALS['agi_end_on_hangup'] = true;
 
+/**
+ **  Associated Exceptions
+ **/
+
+/* Non-200 response code exception */
+class AGICodeException extends Exception;
+
+/* Empty or Null data exception */
+class AGINoDataException extends Exception;
+
+/* Failure to write to Asterisk exception */
+class AGIWriteException extends ErrorException;
+
+/**
+ * Class AGI
+ **/
 class AGI
 {
 	public $agivars = Array();
@@ -27,48 +43,203 @@ class AGI
 		}
 	}
 
-	/*
-	 * Optional argument $parse declares that what is read should be parsed,
-	 * and only the result code is returned from the read() function.
+	/**
+	 * read: Reads (and parses) a response from Asterisk AGI
 	 *
-	 * Return values are (default) the input from Asterisk or (with "parse") 
-	 * the result code from Asterisk.
+	 * @return array Associative array containing:
+	 *    'raw': the full, unparsed response from Asterisk
+	 *    'code': the three-digit result code from Asterisk (200=OK,etc)
+	 *    'result': the command-specific numeric result code
+	 *    'data': the command-specific data (value in parentheses) from Asterisk
 	 * */
-	public function read( $parse = false ) 
+	public function read()
 	{
 		$input = str_replace("\n", "", fgets( STDIN, 4096 ) );
 		trigger_error("read from Asterisk AGI: $input");
 	
-		if( $parse == 'parse' )
-			return substr( strchr( $input, "("),1,-1);
-	
-		return $input;
+		/* Parse the result */
+		$pat = '/^\d{3}(?: result=.*?(?: \(?.*\))?)|(?:-.*)$/';
+		preg_match($pat,$input,$matches);
+		$ret = array(
+			'raw' => $matches[0],
+			'code' => $matches[1],
+			'result' => $matches[2],
+			'data' => $matches[3]
+		);
+
+		/* Throw exception is code is not 200 */
+		if( $ret['code'] != '200' )
+		{
+			throw new AGICodeException( "Failure code from Asterisk: {$ret['raw']}", $ret['code'] );
+		}
+
+		/* Otherwise, return the response array */
+		return $ret;
 	}
 
+	/**
+	 * write: Writes a command to Asterisk AGI
+	 **/
 	public function write( $line )
 	{
-		fwrite( STDOUT, $line ."\n" );
-		fflush( STDOUT );
+		if( !fwrite( STDOUT, $line ."\n" ) )
+		{
+			throw new AGIWriteException( "Failed to write to Asterisk" );	
+		}
+		if( !fflush( STDOUT ) )
+		{
+			throw new AGIWriteException( "Failed to flush write buffer to Asterisk" );
+		}
 		trigger_error("wrote to Asterisk AGI: $line");
 	}
 
-	public function verbose( $line, $level=1 )
-	{
-		$this->write( "verbose \"". addslashes($line) ."\" $level");
-		return $this->read( 'parse' );
-	}
-
-	public function getVar( $varname )
+	/**
+	 * getVar: retrieves the value of an Asterisk channel variable
+	 *   @param string $varname Variable name
+	 *   @param bool $exception_on_empty (optional) Whether to throw an exception if the variable is empty or undefined.  If not specified, the default is FALSE, in which case this method will return FALSE on empty or undefined.
+	 *
+	 *   @return string Value of variable (or FALSE if undefined)
+	 **/
+	public function getVar( $varname, $exception_on_empty = FALSE )
 	{
 		$this->write( "get variable $varname" );
-		return $this->read('parse');
+		$ret = $this->read();
+
+		/* Check for NULL data */
+		if( $ret['result'] == '0' )
+		{
+			/* If we were told to throw an exception on an empty or undefined */
+			if( $exception_on_empty )
+			{
+				throw new AGINoDataException( "No data received from Asterisk: ${ret['raw']}", 0 );
+			}
+			else // Otherwise, simply return FALSE
+			{
+				return FALSE;
+			}
+		}
+
+		/* Return the data */
+		return $ret['data'];
 	}
 
+	/**
+	 * setVar: sets the value of an Asterisk channel variable
+	 *   @param string $varname Variable name
+	 *   @param string $varval Value to set
+	 *
+	 *   @return bool TRUE on success, FALSE on failure
+	 **/
 	public function setVar( $varname, $varval = 0 )
 	{
 		$this->write( "set variable $varname \"$varval\"" );
-		return $this->read('parse');
+		$ret = $this->read();
+		if( $ret['result'] == '1' )
+		{
+			return TRUE;
+		}
+		return FALSE;
 	}
+
+	/**
+	 * setDB: set a key(field) in the Asterisk database
+	 *  @param string $family The "family" or "table" of the database key
+	 *  @param string $key The key(name)
+	 *  @param string $val The value to be stored
+	 *
+	 *  @return bool TRUE on success, FALSE on failure
+	 **/
+	public function setDB( $family, $key, $val )
+	{
+		$this->write( "database put $family $key $val" );
+		$ret = $this->read();
+		if( $ret['result'] == '1' )
+		{
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	/**
+	 * getDB: get a key(field) from the Asterisk database
+	 *  @param string $family The "family" or "table" of the database key
+	 *  @param string $key The key(name)
+	 *  @param bool $exception_on_empty (optional) Whether to throw an exception if the variable is empty or undefined.  If not specified, the default is FALSE, in which case this method will return FALSE on empty or undefined.
+	 *
+	 *  @return string Value of the key(field) (or FALSE if undefined)
+	 **/
+	 public function getDB( $family, $key, $exception_on_empty = FALSE )
+	{
+		$this->write( "database put $family $key $val" );
+		$ret = $this->read();
+
+		/* Check for NULL data */
+		if( $ret['result'] == '0' )
+		{
+			/* If we were told to throw an exception on an empty or undefined */
+			if( $exception_on_empty )
+			{
+				throw new AGINoDataException( "No data received for Asterisk DB $family/$key: ${ret['raw']}", 0 );
+			}
+			else // Otherwise, simply return FALSE
+			{
+				return FALSE;
+			}
+		}
+
+		/* Return the data */
+		return $ret['data'];
+	}
+
+	/***
+	 ***  Macro functions for common actions
+	 ***/
+
+	/**
+	 * verbose: send a "verbose" message to Asterisk
+	 *  @return bool TRUE on success, FALSE on failure
+	 **/
+	public function verbose( $line, $level=1 )
+	{
+		$this->write( "verbose \"". addslashes($line) ."\" $level");
+		$ret = $this->read();
+		if( $ret['result'] == '1' )
+		{
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	/**
+	 * answer:  answer the call
+	 *  @return bool TRUE on success, FALSE on failure
+	 **/
+	public function answer()
+	{
+		$this->write( "answer" );
+		$ret = $this->read();
+		if( $ret['result'] == '1' )
+		{
+			return TRUE;
+		}
+		return FALSE;
+	}
+
+	/**
+	 * hangup:  hangup the call
+	 *  @return bool TRUE on success, FALSE on failure
+	 **/
+	public function hangup()
+	{
+		$this->write( "hangup" );
+		$ret = $this->read();
+		if( $ret['result'] == '1' )
+		{
+			return TRUE;
+		}
+		return FALSE;
+	}
+
 }
 
 

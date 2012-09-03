@@ -10,30 +10,56 @@ A simple class for building AGI-based PHP applications.  Loads AGI variables int
 
 The script may optionally be set to NOT end (default: end) on hangup by setting the PHP global variable `$GLOBALS['agi_end_on_hangup']` to boolean `false`.  Note that this is handled by attaching to SIGHUP, so if your application already handles or uses this signal, you'll have problems.
 
-read ( [ bool $parse ] )
+read ()
 ------------------------
 
-Reads reads a line from stdin (Asterisk).  If the optional $parse argument is set to true (default: false), then a result is attemped to be found and returned.
+Reads reads a line from stdin (Asterisk).  The return value is an associative array with:
+* 'raw': the full, unparsed response from Asterisk
+* 'code': the three-digit response code from Asterisk
+* 'result': the command-specific numeric result code
+* 'data': the command-specific data from Asterisk
 
 write ( $line )
 ---------------
 
 Writes a(n otherwise unformatted) line to stdout (Asterisk).
 
-verbose ( $line, [ $level = 1 ] )
----------------------------------
-
-Sends the Verbose AGI command with the first argument as the content.  The optional second argument is the verbose level (default: 1) to set.
-
-getVar ( $varname )
+getVar ( $varname, [ `$exception_on_empty = FALSE` ] )
 -------------------
 
-Requests the value of a (channel) variable and returns it.
+Requests the value of a (channel) variable and returns it.  If the second (optional) argument is set to TRUE, an exception will be thrown if the variable is undefined (so NULL values can be differentiated).
 
 setVar ( $varname, [ $varval = 0 ] )
 ------------------------------------
 
 Sets or creates a variable with the value given by the second argument.  If there is no second argument defines, then the variable is set to 0.
+
+getDB ( $family, $key, [ `$exception_on_empty = FALSE` ] )
+----------------------------------------------------------
+
+Requests the value of a (channel) variable and returns it.  If the third (optional) argument is set to TRUE, an exception will be thrown if the database key is undefined (so NULL values can be differentiated).
+
+setDB ( $varname, [ $varval = 0 ] )
+------------------------------------
+
+Sets or creates a variable with the value given by the second argument.  If there is no second argument defines, then the variable is set to 0.
+
+### The following methods are specific macros for commonly-executed actions
+
+verbose ( $line, [ $level = 1 ] )
+---------------------------------
+
+Sends the Verbose AGI command with the first argument as the content.  The optional second argument is the verbose level (default: 1) to set.
+
+answer ()
+---------
+
+Tells Asterisk to answer the call/channel
+
+hangup ()
+---------
+
+Tells Asterisk to hangup the call/channel
 
 
 ami.php (class AMI)
